@@ -1,9 +1,18 @@
 <script setup lang="ts">
 import { animate, eases  } from "animejs";
 import { type ComponentPublicInstance, ref } from "vue";
-import { getAffectedCells, getScaleForDistance } from "./utils/gridHover";
+import {
+  getAffectedCells,
+  getScaleForDistance,
+  HOVER_SCALE_RADIUS,
+  HOVER_EFFECT_RADIUS,
+  MAX_SCALE,
+  GRID_SIZE,
+} from "./utils/gridHover";
+import { createShuffledGridItems } from "./utils/createShuffledGridItems";
 
-const MAX_SCALE = 6;
+const items = createShuffledGridItems("鳥", "烏");
+
 
 const cellRefs = ref<HTMLElement[]>([]);
 
@@ -15,15 +24,21 @@ const setCellRef = (
 };
 
 const handleMouseEnter = (hoveredIndex: number) => {
-  const affected = getAffectedCells(hoveredIndex);
+  const affected = getAffectedCells(hoveredIndex, HOVER_EFFECT_RADIUS, {
+    maxScale: MAX_SCALE,
 
-  affected.forEach(({ index, distance }) => {
+  });
+
+
+  affected.forEach(({ index, distance, offset }) => {
     const cell = cellRefs.value[index];
-    if (!cell) return;
+    if (!cell) return;    
     const target = cell.querySelector<HTMLElement>(".cell-content");
     if (!target) return;
     animate(target, {
-      scale: getScaleForDistance(distance,MAX_SCALE),
+      scale: getScaleForDistance(distance, HOVER_SCALE_RADIUS, MAX_SCALE),
+      translateX: offset.x,
+      translateY: offset.y,
       duration: 800,
       ease: "outExpo",
     });
@@ -31,29 +46,19 @@ const handleMouseEnter = (hoveredIndex: number) => {
 };
 
 const handleMouseLeave = (hoveredIndex: number) => {
-  const cell = cellRefs.value[hoveredIndex];
-  if (!cell) return;
-  // const target = cell.querySelector<HTMLElement>(".cell-content");
-  // if (!target) return;
-  // utils.set(target, {
-  //   scale: 6,
-  // });
-  // animate(target, {
-  //   scale: 1,
-  //   duration: 300,
-  // });
-  const affected = getAffectedCells(hoveredIndex);
+  const affected = getAffectedCells(hoveredIndex, HOVER_EFFECT_RADIUS, {
+    maxScale: MAX_SCALE,
+  });
 
-  affected.forEach(({ index, distance }) => {
+  affected.forEach(({ index }) => {
     const cell = cellRefs.value[index];
     if (!cell) return;
     const target = cell.querySelector<HTMLElement>(".cell-content");
     if (!target) return;
-    // utils.set(target, {
-    //   scale: getScaleForDistance(distance,MAX_SCALE),
-    // });
     animate(target, {
       scale: 1,
+      translateX: 0,
+      translateY: 0,
       duration: 800,
       ease: eases.outQuint,
     });
@@ -62,14 +67,15 @@ const handleMouseLeave = (hoveredIndex: number) => {
 </script>
 
 <template>
+  <h1>仲間はずれを探せ！</h1>
   <div class="container">
     <div
-      v-for="i in 100"
-      :key="i"
-      :ref="(el) => setCellRef(el, i - 1)"
+      v-for="(i, index) in items"
+      :key="index"
+      :ref="(el) => setCellRef(el, index)"
       class="cell"
-      @mouseenter="handleMouseEnter(i - 1)"
-      @mouseleave="handleMouseLeave(i - 1)"
+      @mouseenter="handleMouseEnter(index)"
+      @mouseleave="handleMouseLeave(index)"
     >
       <div class="cell-content">
         {{ i }}
@@ -79,19 +85,23 @@ const handleMouseLeave = (hoveredIndex: number) => {
 </template>
 
 <style scoped>
+:root {
+  
+}
 .container {
-  width: 480px;
-  height: 480px;
+  --cell-size: 36px;
+  width: calc(var(--cell-size) * v-bind(GRID_SIZE));
+  height: calc(var(--cell-size) * v-bind(GRID_SIZE));
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(10, 48px);
-  grid-template-rows: repeat(10, 48px);
+  grid-template-columns: repeat(v-bind(GRID_SIZE), var(--cell-size));
+  grid-template-rows: repeat(v-bind(GRID_SIZE), var(--cell-size));
   place-items: center;
 }
 
 .cell {
-  width: 48px;
-  height: 48px;
+  width: var(--cell-size);
+  height: var(--cell-size);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -101,6 +111,6 @@ const handleMouseLeave = (hoveredIndex: number) => {
 }
 
 .cell-content {
-  /* will-change: scale; */
+  font-size: 10px;
 }
 </style>

@@ -1,5 +1,10 @@
-export const GRID_SIZE = 10;
-export const HOVER_RADIUS = 3;
+export const GRID_SIZE = 14;
+export const HOVER_SCALE_RADIUS = 3;
+export const HOVER_EFFECT_RADIUS = 6;
+export const CELL_SIZE = 48;
+export const MAX_SCALE = 7;
+export const DISTANCE_FACTOR = 0.2;
+
 
 export type GridCoord = {
   row: number;
@@ -13,6 +18,8 @@ export type AffectedCell = {
   distance: number;
   /** 同心円のリング番号（0 = 中心） */
   ring: number;
+  /** 中心から押し出す xy オフセット（px） */
+  offset: { x: number; y: number };
 };
 
 /** 1次元インデックス → グリッド座標 */
@@ -41,8 +48,10 @@ export function getGridDistance(a: GridCoord, b: GridCoord): number {
  */
 export function getAffectedCells(
   hoveredIndex: number,
-  maxRadius = HOVER_RADIUS,
+  maxRadius = HOVER_SCALE_RADIUS,
+  options: { maxScale?: number; cellSize?: number } = {},
 ): AffectedCell[] {
+  const { maxScale = 6, cellSize = CELL_SIZE } = options;
   const center = indexToCoord(hoveredIndex);
   const result: AffectedCell[] = [];
 
@@ -62,6 +71,14 @@ export function getAffectedCells(
           coord,
           distance,
           ring: Math.round(distance),
+          offset: getDisplacementFromCenter(
+            center,
+            coord,
+            distance,
+            maxRadius,
+            maxScale,
+            cellSize,
+          ),
         });
       }
     }
@@ -79,4 +96,29 @@ export function getScaleForDistance(
   if (distance > maxRadius) return 1;
   const falloff = 1 - distance / maxRadius;
   return 1 + (maxScale - 1) * falloff;
+}
+
+/**
+ * 中心から外側へ押し出す xy オフセット。
+ * scale による膨張分に応じて、中心方向の逆ベクトルへ移動させる。
+ */
+export function getDisplacementFromCenter(
+  center: GridCoord,
+  coord: GridCoord,
+  distance: number,
+  maxRadius = HOVER_RADIUS,
+  maxScale = MAX_SCALE,
+  cellSize = CELL_SIZE,
+): { x: number; y: number } {
+  if (distance === 0) return { x: 0, y: 0 };
+
+  const dc = coord.col - center.col;
+  const dr = coord.row - center.row;
+  const scale = getScaleForDistance(distance, maxRadius, maxScale);
+  const magnitude = (scale - 1) * cellSize * DISTANCE_FACTOR;
+
+  return {
+    x: (dc / distance) * magnitude,
+    y: (dr / distance) * magnitude,
+  };
 }
