@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { animate, utils } from "animejs";
+import { animate, eases  } from "animejs";
 import { type ComponentPublicInstance, ref } from "vue";
 import { getAffectedCells, getScaleForDistance } from "./utils/gridHover";
+
+const MAX_SCALE = 6;
 
 const cellRefs = ref<HTMLElement[]>([]);
 
@@ -21,8 +23,9 @@ const handleMouseEnter = (hoveredIndex: number) => {
     const target = cell.querySelector<HTMLElement>(".cell-content");
     if (!target) return;
     animate(target, {
-      scale: getScaleForDistance(distance),
-      duration: 300,
+      scale: getScaleForDistance(distance,MAX_SCALE),
+      duration: 800,
+      ease: "outExpo",
     });
   });
 };
@@ -30,30 +33,31 @@ const handleMouseEnter = (hoveredIndex: number) => {
 const handleMouseLeave = (hoveredIndex: number) => {
   const cell = cellRefs.value[hoveredIndex];
   if (!cell) return;
-  cellRefs.value.forEach((cell) => {
+  // const target = cell.querySelector<HTMLElement>(".cell-content");
+  // if (!target) return;
+  // utils.set(target, {
+  //   scale: 6,
+  // });
+  // animate(target, {
+  //   scale: 1,
+  //   duration: 300,
+  // });
+  const affected = getAffectedCells(hoveredIndex);
+
+  affected.forEach(({ index, distance }) => {
+    const cell = cellRefs.value[index];
     if (!cell) return;
     const target = cell.querySelector<HTMLElement>(".cell-content");
     if (!target) return;
+    // utils.set(target, {
+    //   scale: getScaleForDistance(distance,MAX_SCALE),
+    // });
     animate(target, {
       scale: 1,
-      duration: 300,
+      duration: 800,
+      ease: eases.outQuint,
     });
   });
-  // const affected = getAffectedCells(hoveredIndex);
-
-  // affected.forEach(({ index, distance }) => {
-  //   const cell = cellRefs.value[index];
-  //   if (!cell) return;
-  //   const target = cell.querySelector<HTMLElement>(".cell-content");
-  //   if (!target) return;
-  //   utils.set(target, {
-  //     scale: getScaleForDistance(distance) ,
-  //   });
-  //   animate(target, {
-  //     scale: 1,
-  //     duration: 300,
-  //   });
-  // });
 };
 </script>
 
@@ -94,5 +98,9 @@ const handleMouseLeave = (hoveredIndex: number) => {
   border-radius: 4px;
   font-size: 12px;
   cursor: pointer;
+}
+
+.cell-content {
+  /* will-change: scale; */
 }
 </style>
