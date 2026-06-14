@@ -90,7 +90,7 @@ export function getAffectedCells(
 /** 距離に応じた scale 値（中心ほど大きく、外側ほど 1 に近づく） */
 export function getScaleForDistance(
   distance: number,
-  maxRadius = HOVER_RADIUS,
+  maxRadius = HOVER_SCALE_RADIUS,
   maxScale = 6,
 ): number {
   if (distance > maxRadius) return 1;
@@ -106,7 +106,7 @@ export function getDisplacementFromCenter(
   center: GridCoord,
   coord: GridCoord,
   distance: number,
-  maxRadius = HOVER_RADIUS,
+  maxRadius = HOVER_SCALE_RADIUS,
   maxScale = MAX_SCALE,
   cellSize = CELL_SIZE,
 ): { x: number; y: number } {

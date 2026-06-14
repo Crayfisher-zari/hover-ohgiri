@@ -11,7 +11,13 @@ import {
 } from "./utils/gridHover";
 import { createShuffledGridItems } from "./utils/createShuffledGridItems";
 
-const items = createShuffledGridItems("鳥", "烏");
+const NORMAL = "鳥";
+const ODD_ONE = "あ";
+
+const items = createShuffledGridItems(NORMAL, ODD_ONE);
+const gameResult = ref<"correct" | "incorrect" | null>(null);
+const isFinished = ref(false);
+const wrongIndex = ref<number | null>(null);
 
 
 const cellRefs = ref<HTMLElement[]>([]);
@@ -64,30 +70,65 @@ const handleMouseLeave = (hoveredIndex: number) => {
     });
   });
 };
+
+const handleClick = (index: number) => {
+  if (isFinished.value) return;
+
+  if (items[index] === ODD_ONE) {
+    gameResult.value = "correct";
+    isFinished.value = true;
+    wrongIndex.value = null;
+    return;
+  }
+
+  gameResult.value = "incorrect";
+  wrongIndex.value = index;
+};
 </script>
 
 <template>
   <h1>仲間はずれを探せ！</h1>
+  <p v-if="gameResult === 'correct'" class="result result--correct">正解！</p>
+  <p v-else-if="gameResult === 'incorrect'" class="result result--incorrect">
+    違うよ…もう一度探してみて
+  </p>
   <div class="container">
     <div
-      v-for="(i, index) in items"
+      v-for="(item, index) in items"
       :key="index"
       :ref="(el) => setCellRef(el, index)"
       class="cell"
+      :class="{
+        'cell--correct': isFinished && item === ODD_ONE,
+        'cell--wrong': wrongIndex === index,
+      }"
       @mouseenter="handleMouseEnter(index)"
       @mouseleave="handleMouseLeave(index)"
+      @click="handleClick(index)"
     >
       <div class="cell-content">
-        {{ i }}
+        {{ item }}
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-:root {
-  
+.result {
+  text-align: center;
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: bold;
 }
+
+.result--correct {
+  color: #2e7d32;
+}
+
+.result--incorrect {
+  color: #c62828;
+}
+
 .container {
   --cell-size: 36px;
   width: calc(var(--cell-size) * v-bind(GRID_SIZE));
@@ -112,5 +153,13 @@ const handleMouseLeave = (hoveredIndex: number) => {
 
 .cell-content {
   font-size: 10px;
+}
+
+.cell--correct {
+  background: #c8e6c9;
+}
+
+.cell--wrong {
+  background: #ffcdd2;
 }
 </style>
