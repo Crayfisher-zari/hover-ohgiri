@@ -87,6 +87,7 @@ const handleClick = (index: number) => {
 </script>
 
 <template>
+  <main class="game">
   <h1>仲間はずれを探せ！</h1>
   <p v-if="gameResult === 'correct'" class="result result--correct">正解！</p>
   <p v-else-if="gameResult === 'incorrect'" class="result result--incorrect">
@@ -98,22 +99,28 @@ const handleClick = (index: number) => {
       :key="index"
       :ref="(el) => setCellRef(el, index)"
       class="cell"
-      :class="{
-        'cell--correct': isFinished && item === ODD_ONE,
-        'cell--wrong': wrongIndex === index,
-      }"
+     
       @mouseenter="handleMouseEnter(index)"
       @mouseleave="handleMouseLeave(index)"
       @click="handleClick(index)"
     >
-      <div class="cell-content">
+      <div class="cell-content" :class="{
+        'correct': isFinished && item === ODD_ONE,
+        'wrong': wrongIndex === index,
+      }">
         {{ item }}
       </div>
     </div>
   </div>
+</main>
 </template>
 
 <style scoped>
+.game {
+  margin: 0 auto;
+  padding: 20px;
+}
+
 .result {
   text-align: center;
   margin: 0 0 12px;
@@ -153,6 +160,15 @@ const handleClick = (index: number) => {
 
 .cell-content {
   font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  &.correct {
+    background: #c8e6c9;
+  }
+  &.wrong {
+    background: #ffcdd2;
+  }
 }
 
 .cell--correct {
