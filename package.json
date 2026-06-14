@@ -11,6 +11,7 @@
     "fmt": "oxfmt"
   },
   "dependencies": {
+    "animejs": "4.4.1",
     "vue": "^3.5.34"
   },
   "devDependencies": {
