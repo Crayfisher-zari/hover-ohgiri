@@ -11,10 +11,28 @@ import {
 } from "./utils/gridHover";
 import { createShuffledGridItems } from "./utils/createShuffledGridItems";
 
-const NORMAL = "鳥";
-const ODD_ONE = "あ";
+const CHAR_PAIRS = [
+  { normal: "鳥", oddOne: "烏" },
+  { normal: "木", oddOne: "本" },
+  { normal: "日", oddOne: "目" },
+  { normal: "土", oddOne: "士" },
+  { normal: "未", oddOne: "末" },
+  { normal: "犬", oddOne: "大" },
+  { normal: "柿", oddOne: "杮" },
+  { normal: "力", oddOne: "カ" },
+  { normal: "千", oddOne: "チ" },
+  { normal: "緑", oddOne: "縁" },
+  { normal: "治", oddOne: "冶" },
+  { normal: "壁", oddOne: "璧" },
+  { normal: "王", oddOne: "玉" },
+] as const;
 
-const items = ref(createShuffledGridItems(NORMAL, ODD_ONE));
+const pickRandomPair = () => CHAR_PAIRS[Math.floor(Math.random() * CHAR_PAIRS.length)];
+
+const pair = ref(pickRandomPair());
+const oddOne = computed(() => pair.value.oddOne);
+
+const items = ref(createShuffledGridItems(pair.value.normal, pair.value.oddOne));
 const round = ref(0);
 const isFinished = ref(false);
 const misses = ref(0);
@@ -24,10 +42,7 @@ const statusLabel = computed(() => (isFinished.value ? "発見" : "探索中"));
 
 const cellRefs = ref<HTMLElement[]>([]);
 
-const setCellRef = (
-  el: Element | ComponentPublicInstance | null,
-  index: number,
-) => {
+const setCellRef = (el: Element | ComponentPublicInstance | null, index: number) => {
   if (el instanceof HTMLElement) cellRefs.value[index] = el;
 };
 
@@ -77,16 +92,13 @@ const handleClick = (index: number) => {
   const target = contentOf(index);
   if (!target) return;
 
-  if (items.value[index] === ODD_ONE) {
+  if (items.value[index] === oddOne.value) {
     isFinished.value = true;
     wrongIndex.value = null;
     animate(target, {
-      scale: 3,
-      translateX: 0,
-      translateY: 0,
       color: "#bc2e1f",
-      duration: 900,
-      ease: "outElastic(1, .55)",
+      duration: 400,
+      ease: "outExpo",
     });
     return;
   }
@@ -105,7 +117,8 @@ const reset = () => {
   misses.value = 0;
   wrongIndex.value = null;
   cellRefs.value = [];
-  items.value = createShuffledGridItems(NORMAL, ODD_ONE);
+  pair.value = pickRandomPair();
+  items.value = createShuffledGridItems(pair.value.normal, pair.value.oddOne);
   round.value += 1;
 };
 </script>
@@ -113,9 +126,8 @@ const reset = () => {
 <template>
   <main class="stage">
     <header class="masthead">
-      <p class="kicker"><span class="kicker__mark">○</span>Odd One Out — 仲間はずれ</p>
       <h1 class="title">仲間はずれを探せ</h1>
-      <p class="lead">百九十六字の鳥のなかに、一字だけ紛れた異物がいる。</p>
+      <p class="lead">百九十六字の中に、一字だけ紛れた異物がいる。</p>
     </header>
 
     <section class="board">
@@ -126,7 +138,7 @@ const reset = () => {
             :key="`${round}-${index}`"
             :ref="(el) => setCellRef(el, index)"
             class="cell"
-            :class="{ 'is-correct': isFinished && item === ODD_ONE }"
+            :class="{ 'is-correct': isFinished && item === oddOne }"
             @mouseenter="handleMouseEnter(index)"
             @mouseleave="handleMouseLeave(index)"
             @click="handleClick(index)"
@@ -136,8 +148,8 @@ const reset = () => {
         </div>
       </div>
 
-      <aside class="meta">
-        <dl class="meta__list">
+      <!-- <aside class="meta">
+       <dl class="meta__list">
           <div class="meta__row">
             <dt><span class="meta__idx">01</span>Status</dt>
             <dd :class="{ 'is-found': isFinished }">{{ statusLabel }}</dd>
@@ -152,24 +164,18 @@ const reset = () => {
           </div>
           <div class="meta__row">
             <dt><span class="meta__idx">04</span>Target</dt>
-            <dd class="meta__target">{{ isFinished ? ODD_ONE : "？" }}</dd>
+            <dd class="meta__target">{{ isFinished ? oddOne : "？" }}</dd>
           </div>
         </dl>
 
-        <p class="meta__note">
-          <template v-if="isFinished">見つけたね。それが仲間はずれ。</template>
-          <template v-else>盤面をなぞって、違う一字を探す。</template>
-        </p>
 
-        <button class="reset" type="button" @click="reset">
-          <span class="reset__line"></span>もう一度
-        </button>
-      </aside>
+       
+      </aside> -->
     </section>
-
     <footer class="footer">
-      <span>烏 — Crow in the flock</span>
-      <span>2026</span>
+      <button class="reset" type="button" @click="reset">
+        <span class="reset__line"></span>もう一度
+      </button>
     </footer>
   </main>
 </template>
@@ -190,7 +196,7 @@ const reset = () => {
 /* ---------- masthead ---------- */
 .masthead {
   text-align: center;
-  max-width: 52ch;
+  max-width: auto;
 }
 
 .kicker {
@@ -214,13 +220,11 @@ const reset = () => {
   margin: 0;
   font-weight: 900;
   font-size: clamp(2.4rem, 7vw, 5rem);
-  letter-spacing: 0.12em;
   line-height: 1.04;
 }
 
 .lead {
   margin: clamp(18px, 2.4vw, 28px) auto 0;
-  max-width: 34ch;
   font-size: clamp(0.85rem, 1.4vw, 1rem);
   letter-spacing: 0.06em;
   line-height: 2;
@@ -229,14 +233,12 @@ const reset = () => {
 
 /* ---------- board ---------- */
 .board {
+  width: 760px;
   display: flex;
-  align-items: flex-start;
-  gap: clamp(24px, 3vw, 56px);
-}
-
-.field {
-  /* スケール時にあふれる余白を確保 */
-  padding: clamp(16px, 2.4vw, 36px);
+  flex-direction: column;
+  align-items: start;
+  justify-content: space-between;
+  gap: 64px;
 }
 
 .container {
@@ -279,34 +281,11 @@ const reset = () => {
   color: var(--accent);
 }
 
-.cell.is-correct .cell-content::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 1.7em;
-  height: 1.7em;
-  border: 0.1em solid var(--accent);
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  animation: seal 0.6s 0.25s ease both;
-}
-
-@keyframes seal {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.4) rotate(-25deg);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1) rotate(0deg);
-  }
-}
-
 /* ---------- meta ---------- */
 .meta {
   width: clamp(180px, 22vw, 232px);
   flex-shrink: 0;
+  margin-top: 12px;
 }
 
 .meta__list {
@@ -397,7 +376,7 @@ const reset = () => {
   display: flex;
   justify-content: space-between;
   gap: 24px;
-  width: min(100%, 720px);
+  width: 760px;
   padding-top: 20px;
   border-top: 1px solid var(--hairline);
   font-family: var(--font-mono);

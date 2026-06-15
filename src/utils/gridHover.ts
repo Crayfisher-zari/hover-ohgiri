@@ -5,7 +5,6 @@ export const CELL_SIZE = 48;
 export const MAX_SCALE = 7;
 export const DISTANCE_FACTOR = 0.2;
 
-
 export type GridCoord = {
   row: number;
   col: number;
@@ -71,14 +70,7 @@ export function getAffectedCells(
           coord,
           distance,
           ring: Math.round(distance),
-          offset: getDisplacementFromCenter(
-            center,
-            coord,
-            distance,
-            maxRadius,
-            maxScale,
-            cellSize,
-          ),
+          offset: getDisplacementFromCenter(center, coord, distance, maxRadius, maxScale, cellSize),
         });
       }
     }
