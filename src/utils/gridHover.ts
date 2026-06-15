@@ -1,4 +1,4 @@
-export const GRID_SIZE = 20;
+export const GRID_SIZE = 24;
 export const HOVER_SCALE_RADIUS = 3;
 export const HOVER_EFFECT_RADIUS = 6;
 export const CELL_SIZE = 48;

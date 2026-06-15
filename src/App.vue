@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { animate, eases } from "animejs";
-import { type ComponentPublicInstance, computed, ref } from "vue";
+import { type ComponentPublicInstance, computed, onMounted, onUnmounted, ref } from "vue";
+import { onFindShortcut } from "./utils/findShortcut";
 import {
   getAffectedCells,
   getScaleForDistance,
@@ -38,9 +39,21 @@ const isFinished = ref(false);
 const misses = ref(0);
 const wrongIndex = ref<number | null>(null);
 
-const statusLabel = computed(() => (isFinished.value ? "発見" : "探索中"));
-
 const cellRefs = ref<HTMLElement[]>([]);
+
+const handleFindShortcut = () => {
+  window.alert("ズルはだめよ");
+};
+
+let stopFindShortcut: (() => void) | undefined;
+
+onMounted(() => {
+  stopFindShortcut = onFindShortcut(handleFindShortcut);
+});
+
+onUnmounted(() => {
+  stopFindShortcut?.();
+});
 
 const setCellRef = (el: Element | ComponentPublicInstance | null, index: number) => {
   if (el instanceof HTMLElement) cellRefs.value[index] = el;
@@ -127,9 +140,11 @@ const reset = () => {
   <main class="stage">
     <header class="masthead">
       <h1 class="title">仲間はずれを探せ</h1>
-      <p class="lead">百九十六字の中に、一字だけ紛れた異物がいる。</p>
+      <p class="lead">この中に、一字だけ紛れた異物がいる。</p>
     </header>
-
+    <div class="sr-only">
+      {{ oddOne }}
+    </div>
     <section class="board">
       <div class="field">
         <div class="container">
@@ -147,30 +162,6 @@ const reset = () => {
           </div>
         </div>
       </div>
-
-      <!-- <aside class="meta">
-       <dl class="meta__list">
-          <div class="meta__row">
-            <dt><span class="meta__idx">01</span>Status</dt>
-            <dd :class="{ 'is-found': isFinished }">{{ statusLabel }}</dd>
-          </div>
-          <div class="meta__row">
-            <dt><span class="meta__idx">02</span>Grid</dt>
-            <dd>{{ GRID_SIZE }} × {{ GRID_SIZE }}</dd>
-          </div>
-          <div class="meta__row">
-            <dt><span class="meta__idx">03</span>Misses</dt>
-            <dd>{{ String(misses).padStart(2, "0") }}</dd>
-          </div>
-          <div class="meta__row">
-            <dt><span class="meta__idx">04</span>Target</dt>
-            <dd class="meta__target">{{ isFinished ? oddOne : "？" }}</dd>
-          </div>
-        </dl>
-
-
-       
-      </aside> -->
     </section>
     <footer class="footer">
       <button class="reset" type="button" @click="reset">
@@ -180,6 +171,20 @@ const reset = () => {
   </main>
 </template>
 
+<style>
+:root{
+  --cell-size: 36px;
+}
+.sr-only{
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+</style>
 <style scoped>
 .stage {
   min-height: 100vh;
@@ -233,7 +238,6 @@ const reset = () => {
 
 /* ---------- board ---------- */
 .board {
-  width: 760px;
   display: flex;
   flex-direction: column;
   align-items: start;
@@ -242,7 +246,7 @@ const reset = () => {
 }
 
 .container {
-  --cell-size: clamp(20px, 4.6vw, 38px);
+
   width: calc(var(--cell-size) * v-bind(GRID_SIZE));
   height: calc(var(--cell-size) * v-bind(GRID_SIZE));
   display: grid;
@@ -267,6 +271,12 @@ const reset = () => {
   line-height: 1;
   color: rgba(20, 18, 15, 0.62);
   transition: color 0.4s ease;
+  &::search-text{
+    background-color: transparent;
+  }
+  &::selection{
+    background-color: transparent;
+  }
 }
 
 .cell:hover .cell-content {
@@ -376,7 +386,7 @@ const reset = () => {
   display: flex;
   justify-content: space-between;
   gap: 24px;
-  width: 760px;
+  width: calc(var(--cell-size) * v-bind(GRID_SIZE));
   padding-top: 20px;
   border-top: 1px solid var(--hairline);
   font-family: var(--font-mono);
