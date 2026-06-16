@@ -40,6 +40,60 @@ const misses = ref(0);
 const wrongIndex = ref<number | null>(null);
 
 const cellRefs = ref<HTMLElement[]>([]);
+const containerRef = ref<HTMLElement | null>(null);
+const activeTouchIndex = ref<number | null>(null);
+
+const getCellIndexFromPoint = (clientX: number, clientY: number): number | null => {
+  const container = containerRef.value;
+  if (!container) return null;
+
+  const rect = container.getBoundingClientRect();
+  const x = clientX - rect.left;
+  const y = clientY - rect.top;
+
+  if (x < 0 || y < 0 || x >= rect.width || y >= rect.height) return null;
+
+  const cellSize = rect.width / GRID_SIZE;
+  const col = Math.floor(x / cellSize);
+  const row = Math.floor(y / cellSize);
+
+  if (row < 0 || row >= GRID_SIZE || col < 0 || col >= GRID_SIZE) return null;
+
+  return row * GRID_SIZE + col;
+};
+
+const setTouchHoveredCell = (index: number | null) => {
+  if (index === activeTouchIndex.value) return;
+
+  if (activeTouchIndex.value !== null) {
+    handleMouseLeave(activeTouchIndex.value);
+  }
+
+  if (index !== null) {
+    handleMouseEnter(index);
+  }
+
+  activeTouchIndex.value = index;
+};
+
+const handleTouchStart = (event: TouchEvent) => {
+  if (isFinished.value) return;
+  const touch = event.touches[0];
+  if (!touch) return;
+  setTouchHoveredCell(getCellIndexFromPoint(touch.clientX, touch.clientY));
+};
+
+const handleTouchMove = (event: TouchEvent) => {
+  if (isFinished.value) return;
+  event.preventDefault();
+  const touch = event.touches[0];
+  if (!touch) return;
+  setTouchHoveredCell(getCellIndexFromPoint(touch.clientX, touch.clientY));
+};
+
+const handleTouchEnd = () => {
+  setTouchHoveredCell(null);
+};
 
 const handleFindShortcut = () => {
   window.alert("ズルはだめよ");
@@ -126,6 +180,7 @@ const handleClick = (index: number) => {
 };
 
 const reset = () => {
+  setTouchHoveredCell(null);
   isFinished.value = false;
   misses.value = 0;
   wrongIndex.value = null;
@@ -147,13 +202,23 @@ const reset = () => {
     </div>
     <section class="board">
       <div class="field">
-        <div class="container">
+        <div
+          ref="containerRef"
+          class="container"
+          @touchstart.passive="handleTouchStart"
+          @touchmove="handleTouchMove"
+          @touchend="handleTouchEnd"
+          @touchcancel="handleTouchEnd"
+        >
           <div
             v-for="(item, index) in items"
             :key="`${round}-${index}`"
             :ref="(el) => setCellRef(el, index)"
             class="cell"
-            :class="{ 'is-correct': isFinished && item === oddOne }"
+            :class="{
+              'is-correct': isFinished && item === oddOne,
+              'is-hovered': activeTouchIndex === index,
+            }"
             @mouseenter="handleMouseEnter(index)"
             @mouseleave="handleMouseLeave(index)"
             @click="handleClick(index)"
@@ -246,13 +311,13 @@ const reset = () => {
 }
 
 .container {
-
   width: calc(var(--cell-size) * v-bind(GRID_SIZE));
   height: calc(var(--cell-size) * v-bind(GRID_SIZE));
   display: grid;
   grid-template-columns: repeat(v-bind(GRID_SIZE), var(--cell-size));
   grid-template-rows: repeat(v-bind(GRID_SIZE), var(--cell-size));
   place-items: center;
+  touch-action: none;
 }
 
 .cell {
@@ -279,7 +344,8 @@ const reset = () => {
   }
 }
 
-.cell:hover .cell-content {
+.cell:hover .cell-content,
+.cell.is-hovered .cell-content {
   color: var(--ink);
 }
 
