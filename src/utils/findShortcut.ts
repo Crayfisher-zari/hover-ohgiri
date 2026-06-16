@@ -1,11 +1,6 @@
 export const isFindShortcut = (event: KeyboardEvent): boolean => {
   const key = event.key.toLowerCase();
-  return (
-    key === "f" &&
-    (event.ctrlKey || event.metaKey) &&
-    !event.altKey &&
-    !event.shiftKey
-  );
+  return key === "f" && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey;
 };
 
 export const onFindShortcut = (handler: (event: KeyboardEvent) => void) => {

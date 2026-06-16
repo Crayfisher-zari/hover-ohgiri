@@ -26,6 +26,7 @@ const CHAR_PAIRS = [
   { normal: "治", oddOne: "冶" },
   { normal: "壁", oddOne: "璧" },
   { normal: "王", oddOne: "玉" },
+  { normal: "ト", oddOne: "卜" },
 ] as const;
 
 const pickRandomPair = () => CHAR_PAIRS[Math.floor(Math.random() * CHAR_PAIRS.length)];
@@ -237,10 +238,10 @@ const reset = () => {
 </template>
 
 <style>
-:root{
+:root {
   --cell-size: 36px;
 }
-.sr-only{
+.sr-only {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -336,10 +337,10 @@ const reset = () => {
   line-height: 1;
   color: rgba(20, 18, 15, 0.62);
   transition: color 0.4s ease;
-  &::search-text{
+  &::search-text {
     background-color: transparent;
   }
-  &::selection{
+  &::selection {
     background-color: transparent;
   }
 }
