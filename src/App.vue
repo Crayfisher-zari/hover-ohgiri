@@ -27,6 +27,9 @@ const CHAR_PAIRS = [
   { normal: "壁", oddOne: "璧" },
   { normal: "王", oddOne: "玉" },
   { normal: "ト", oddOne: "卜" },
+  { normal: "酒", oddOne: "洒" },
+  { normal: "夕", oddOne: "タ" },
+  { normal: "工", oddOne: "エ" },
 ] as const;
 
 const pickRandomPair = () => CHAR_PAIRS[Math.floor(Math.random() * CHAR_PAIRS.length)];
