@@ -3,6 +3,7 @@ import { animate, eases } from "animejs";
 import { type ComponentPublicInstance, computed, onMounted, onUnmounted, ref } from "vue";
 import { onFindShortcut } from "./utils/findShortcut";
 import {
+  type RoundOutcome,
   buildShareMessage,
   canUseNativeShare,
   copyShareMessage,
@@ -48,7 +49,7 @@ const oddOne = computed(() => pair.value.oddOne);
 
 const items = ref(createShuffledGridItems(pair.value.normal, pair.value.oddOne));
 const round = ref(0);
-const isFinished = ref(false);
+const roundResult = ref<RoundOutcome | null>(null);
 const misses = ref(0);
 const wrongIndex = ref<number | null>(null);
 const startTime = ref(Date.now());
@@ -96,14 +97,14 @@ const setTouchHoveredCell = (index: number | null) => {
 };
 
 const handleTouchStart = (event: TouchEvent) => {
-  if (isFinished.value) return;
+  if (isRoundOver.value) return;
   const touch = event.touches[0];
   if (!touch) return;
   setTouchHoveredCell(getCellIndexFromPoint(touch.clientX, touch.clientY));
 };
 
 const handleTouchMove = (event: TouchEvent) => {
-  if (isFinished.value) return;
+  if (isRoundOver.value) return;
   event.preventDefault();
   const touch = event.touches[0];
   if (!touch) return;
@@ -118,12 +119,14 @@ const handleFindShortcut = () => {
   window.alert("ズルはだめよ");
 };
 
+const isRoundOver = computed(() => roundResult.value !== null);
 const elapsedSeconds = computed(() => formatElapsedSeconds(elapsedMs.value));
 const shareParams = computed(() => ({
   normal: pair.value.normal,
   oddOne: pair.value.oddOne,
   elapsedMs: elapsedMs.value,
   misses: misses.value,
+  outcome: roundResult.value!,
 }));
 const showNativeShare = computed(() => canUseNativeShare());
 
@@ -139,7 +142,7 @@ const startTimer = () => {
   startTime.value = Date.now();
   elapsedMs.value = 0;
   timerId = setInterval(() => {
-    if (!isFinished.value) {
+    if (!isRoundOver.value) {
       elapsedMs.value = Date.now() - startTime.value;
     }
   }, 100);
@@ -188,7 +191,7 @@ const contentOf = (index: number) =>
   cellRefs.value[index]?.querySelector<HTMLElement>(".cell-content") ?? null;
 
 const handleMouseEnter = (hoveredIndex: number) => {
-  if (isFinished.value) return;
+  if (isRoundOver.value) return;
   const affected = getAffectedCells(hoveredIndex, HOVER_EFFECT_RADIUS, {
     maxScale: MAX_SCALE,
   });
@@ -207,7 +210,7 @@ const handleMouseEnter = (hoveredIndex: number) => {
 };
 
 const handleMouseLeave = (hoveredIndex: number) => {
-  if (isFinished.value) return;
+  if (isRoundOver.value) return;
   const affected = getAffectedCells(hoveredIndex, HOVER_EFFECT_RADIUS, {
     maxScale: MAX_SCALE,
   });
@@ -225,20 +228,39 @@ const handleMouseLeave = (hoveredIndex: number) => {
   });
 };
 
+const revealOddOne = () => {
+  const oddIndex = items.value.findIndex((item) => item === oddOne.value);
+  if (oddIndex < 0) return;
+
+  const affected = getAffectedCells(oddIndex, HOVER_EFFECT_RADIUS, {
+    maxScale: MAX_SCALE,
+  });
+
+  affected.forEach(({ index, distance, offset }) => {
+    const target = contentOf(index);
+    if (!target) return;
+    animate(target, {
+      scale: getScaleForDistance(distance, HOVER_SCALE_RADIUS, MAX_SCALE),
+      translateX: offset.x,
+      translateY: offset.y,
+      duration: 800,
+      ease: "outExpo",
+      ...(index === oddIndex ? { color: "#bc2e1f" } : {}),
+    });
+  });
+};
+
 const handleClick = (index: number) => {
-  if (isFinished.value) return;
+  if (isRoundOver.value) return;
   const target = contentOf(index);
   if (!target) return;
 
   if (items.value[index] === oddOne.value) {
-    isFinished.value = true;
+    roundResult.value = "won";
     wrongIndex.value = null;
     finishRound();
-    animate(target, {
-      color: "#bc2e1f",
-      duration: 400,
-      ease: "outExpo",
-    });
+    if (activeTouchIndex.value !== null) setTouchHoveredCell(null);
+    revealOddOne();
     return;
   }
 
@@ -251,9 +273,18 @@ const handleClick = (index: number) => {
   });
 };
 
+const surrender = () => {
+  if (isRoundOver.value) return;
+  roundResult.value = "surrendered";
+  wrongIndex.value = null;
+  setTouchHoveredCell(null);
+  finishRound();
+  revealOddOne();
+};
+
 const reset = () => {
   setTouchHoveredCell(null);
-  isFinished.value = false;
+  roundResult.value = null;
   misses.value = 0;
   wrongIndex.value = null;
   copiedShare.value = false;
@@ -290,7 +321,7 @@ const reset = () => {
             :ref="(el) => setCellRef(el, index)"
             class="cell"
             :class="{
-              'is-correct': isFinished && item === oddOne,
+              'is-correct': isRoundOver && item === oddOne,
               'is-hovered': activeTouchIndex === index,
             }"
             @mouseenter="handleMouseEnter(index)"
@@ -302,13 +333,26 @@ const reset = () => {
         </div>
       </div>
     </section>
-    <footer class="footer" :class="{ 'footer--finished': isFinished }">
-      <div v-if="isFinished" class="result">
-        <p class="result__headline">
-          <span class="result__time">{{ elapsedSeconds }}</span
-          ><span class="result__unit">秒</span>で見つけた
-        </p>
-        <p v-if="misses > 0" class="result__miss">ミス {{ misses }} 回</p>
+    <footer class="footer" :class="{ 'footer--finished': isRoundOver }">
+      <div v-if="!isRoundOver" class="status">
+        <p class="status__miss">お手つき {{ misses }}</p>
+        <button class="surrender" type="button" @click="surrender">降参</button>
+      </div>
+      <div v-else class="result">
+        <template v-if="roundResult === 'won'">
+          <p class="result__headline">
+            <span class="result__time">{{ elapsedSeconds }}</span
+            ><span class="result__unit">秒</span>で見つけた
+          </p>
+        </template>
+        <template v-else>
+          <p class="result__headline result__headline--surrender">降参した</p>
+          <p class="result__answer">
+            答えは<span class="result__char">{{ oddOne }}</span>
+          </p>
+          <p class="result__elapsed">{{ elapsedSeconds }}秒かかった</p>
+        </template>
+        <p class="result__miss">お手つき {{ misses }} 回</p>
         <div class="share" role="group" aria-label="結果をシェア">
           <button class="share__btn" type="button" @click="handleShareX">X</button>
           <button class="share__btn" type="button" @click="handleShareLine">LINE</button>
@@ -370,7 +414,7 @@ const reset = () => {
   align-items: center;
   gap: 0.7em;
   margin: 0 0 clamp(16px, 2vw, 28px);
-  font-family: var(--font-mono);
+  font-family: var(--font-serif);
   font-size: 11px;
   letter-spacing: 0.32em;
   text-transform: uppercase;
@@ -471,7 +515,7 @@ const reset = () => {
   gap: 12px;
   padding: 14px 0;
   border-top: 1px solid var(--hairline);
-  font-family: var(--font-mono);
+  font-family: var(--font-serif);
   font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -525,8 +569,8 @@ const reset = () => {
   border: none;
   background: none;
   cursor: pointer;
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-serif);
+  font-size: 16px;
   letter-spacing: 0.24em;
   text-transform: uppercase;
   color: var(--ink);
@@ -552,7 +596,7 @@ const reset = () => {
   width: calc(var(--cell-size) * v-bind(GRID_SIZE));
   padding-top: 20px;
   border-top: 1px solid var(--hairline);
-  font-family: var(--font-mono);
+  font-family: var(--font-serif);
   font-size: 10px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
@@ -561,6 +605,39 @@ const reset = () => {
 
 .footer--finished {
   align-items: flex-start;
+}
+
+.status {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.status__miss {
+  margin: 0;
+  font-size: 16px;
+  letter-spacing: 0.16em;
+  color: var(--ink-soft);
+  font-family: var(--font-serif);
+}
+
+.surrender {
+  appearance: none;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-serif);
+  font-size: 14px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  transition: color 0.2s ease;
+  text-align: left;
+}
+
+.surrender:hover {
+  color: var(--accent);
 }
 
 .result {
@@ -576,6 +653,33 @@ const reset = () => {
   letter-spacing: 0.08em;
   text-transform: none;
   color: var(--ink);
+}
+
+.result__headline--surrender {
+  color: var(--ink-soft);
+}
+
+.result__answer {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: clamp(0.95rem, 1.8vw, 1.05rem);
+  letter-spacing: 0.08em;
+  text-transform: none;
+  color: var(--ink);
+}
+
+.result__char {
+  margin-left: 0.35em;
+  font-size: 1.4em;
+  font-weight: 900;
+  color: var(--accent);
+}
+
+.result__elapsed {
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--ink-soft);
 }
 
 .result__time {
@@ -610,7 +714,7 @@ const reset = () => {
   border: 1px solid var(--hairline);
   background: transparent;
   cursor: pointer;
-  font-family: var(--font-mono);
+  font-family: var(--font-serif);
   font-size: 10px;
   letter-spacing: 0.16em;
   text-transform: uppercase;

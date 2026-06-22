@@ -7,17 +7,27 @@ export const getGameUrl = () => {
 
 export const formatElapsedSeconds = (elapsedMs: number) => (elapsedMs / 1000).toFixed(1);
 
-type ShareParams = {
+export type RoundOutcome = "won" | "surrendered";
+
+export type ShareParams = {
   normal: string;
   oddOne: string;
   elapsedMs: number;
   misses: number;
+  outcome: RoundOutcome;
 };
 
-export const buildShareText = ({ normal, elapsedMs, misses }: ShareParams) => {
+const formatMissPart = (misses: number) => `（お手つき${misses}回）`;
+
+export const buildShareText = ({ normal, oddOne, elapsedMs, misses, outcome }: ShareParams) => {
   const seconds = formatElapsedSeconds(elapsedMs);
-  const missPart = misses > 0 ? `（ミス${misses}回）` : "";
-  return `「仲間はずれを探せ」で「${normal}」の中から仲間外れをを${seconds}秒で見つけた！${missPart}`;
+  const missPart = formatMissPart(misses);
+
+  if (outcome === "surrendered") {
+    return `「仲間はずれを探せ」で「${normal}」の中の「${oddOne}」に${seconds}秒で降参…${missPart}`;
+  }
+
+  return `「仲間はずれを探せ」で「${normal}」の中の「${oddOne}」を${seconds}秒で見つけた！${missPart}`;
 };
 
 export const buildShareMessage = (params: ShareParams) => {
