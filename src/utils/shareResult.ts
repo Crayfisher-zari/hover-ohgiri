@@ -14,20 +14,25 @@ export type ShareParams = {
   oddOne: string;
   elapsedMs: number;
   misses: number;
+  triedFindShortcut: boolean;
   outcome: RoundOutcome;
 };
 
-const formatMissPart = (misses: number) => `（お手つき${misses}回）`;
+const formatStatPart = ({ misses, triedFindShortcut }: Pick<ShareParams, "misses" | "triedFindShortcut">) => {
+  const parts = [`お手つき${misses}回`];
+  if (triedFindShortcut) parts.push("検索でズルしようとした");
+  return `（${parts.join("・")}）`;
+};
 
-export const buildShareText = ({ normal, elapsedMs, misses, outcome }: ShareParams) => {
+export const buildShareText = ({ normal, elapsedMs, outcome, ...stats }: ShareParams) => {
   const seconds = formatElapsedSeconds(elapsedMs);
-  const missPart = formatMissPart(misses);
+  const statPart = formatStatPart(stats);
 
   if (outcome === "surrendered") {
-    return `「仲間はずれを探せ」で「${normal}」の中に仲間外れを見つけられずに${seconds}秒で降参…${missPart}`;
+    return `「仲間はずれを探せ」で「${normal}」の中に仲間外れを見つけられずに${seconds}秒で降参…${statPart}`;
   }
 
-  return `「仲間はずれを探せ」で「${normal}」の中に仲間外れを${seconds}秒で見つけた！${missPart}`;
+  return `「仲間はずれを探せ」で「${normal}」の中に仲間外れを${seconds}秒で見つけた！${statPart}`;
 };
 
 export const buildShareMessage = (params: ShareParams) => {

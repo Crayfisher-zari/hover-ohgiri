@@ -51,6 +51,7 @@ const items = ref(createShuffledGridItems(pair.value.normal, pair.value.oddOne))
 const round = ref(0);
 const roundResult = ref<RoundOutcome | null>(null);
 const misses = ref(0);
+const triedFindShortcut = ref(false);
 const wrongIndex = ref<number | null>(null);
 const startTime = ref(Date.now());
 const elapsedMs = ref(0);
@@ -116,6 +117,7 @@ const handleTouchEnd = () => {
 };
 
 const handleFindShortcut = () => {
+  triedFindShortcut.value = true;
   window.alert("ズルはだめよ");
 };
 
@@ -126,6 +128,7 @@ const shareParams = computed(() => ({
   oddOne: pair.value.oddOne,
   elapsedMs: elapsedMs.value,
   misses: misses.value,
+  triedFindShortcut: triedFindShortcut.value,
   outcome: roundResult.value!,
 }));
 const showNativeShare = computed(() => canUseNativeShare());
@@ -286,6 +289,7 @@ const reset = () => {
   setTouchHoveredCell(null);
   roundResult.value = null;
   misses.value = 0;
+  triedFindShortcut.value = false;
   wrongIndex.value = null;
   copiedShare.value = false;
   cellRefs.value = [];
