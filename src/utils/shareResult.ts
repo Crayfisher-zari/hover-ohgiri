@@ -19,15 +19,15 @@ export type ShareParams = {
 
 const formatMissPart = (misses: number) => `（お手つき${misses}回）`;
 
-export const buildShareText = ({ normal, oddOne, elapsedMs, misses, outcome }: ShareParams) => {
+export const buildShareText = ({ normal, elapsedMs, misses, outcome }: ShareParams) => {
   const seconds = formatElapsedSeconds(elapsedMs);
   const missPart = formatMissPart(misses);
 
   if (outcome === "surrendered") {
-    return `「仲間はずれを探せ」で「${normal}」の中の「${oddOne}」に${seconds}秒で降参…${missPart}`;
+    return `「仲間はずれを探せ」で「${normal}」の中に仲間外れを見つけられずに${seconds}秒で降参…${missPart}`;
   }
 
-  return `「仲間はずれを探せ」で「${normal}」の中の「${oddOne}」を${seconds}秒で見つけた！${missPart}`;
+  return `「仲間はずれを探せ」で「${normal}」の中に仲間外れを${seconds}秒で見つけた！${missPart}`;
 };
 
 export const buildShareMessage = (params: ShareParams) => {
