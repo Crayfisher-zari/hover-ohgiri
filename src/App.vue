@@ -3,6 +3,15 @@ import { animate, eases } from "animejs";
 import { type ComponentPublicInstance, computed, onMounted, onUnmounted, ref } from "vue";
 import { onFindShortcut } from "./utils/findShortcut";
 import {
+  buildShareMessage,
+  canUseNativeShare,
+  copyShareMessage,
+  formatElapsedSeconds,
+  nativeShare,
+  shareToLine,
+  shareToX,
+} from "./utils/shareResult";
+import {
   getAffectedCells,
   getScaleForDistance,
   HOVER_SCALE_RADIUS,
@@ -42,6 +51,12 @@ const round = ref(0);
 const isFinished = ref(false);
 const misses = ref(0);
 const wrongIndex = ref<number | null>(null);
+const startTime = ref(Date.now());
+const elapsedMs = ref(0);
+const copiedShare = ref(false);
+
+let timerId: ReturnType<typeof setInterval> | undefined;
+let copyResetId: ReturnType<typeof setTimeout> | undefined;
 
 const cellRefs = ref<HTMLElement[]>([]);
 const containerRef = ref<HTMLElement | null>(null);
@@ -103,14 +118,66 @@ const handleFindShortcut = () => {
   window.alert("ズルはだめよ");
 };
 
+const elapsedSeconds = computed(() => formatElapsedSeconds(elapsedMs.value));
+const shareParams = computed(() => ({
+  normal: pair.value.normal,
+  oddOne: pair.value.oddOne,
+  elapsedMs: elapsedMs.value,
+  misses: misses.value,
+}));
+const showNativeShare = computed(() => canUseNativeShare());
+
+const stopTimer = () => {
+  if (timerId !== undefined) {
+    clearInterval(timerId);
+    timerId = undefined;
+  }
+};
+
+const startTimer = () => {
+  stopTimer();
+  startTime.value = Date.now();
+  elapsedMs.value = 0;
+  timerId = setInterval(() => {
+    if (!isFinished.value) {
+      elapsedMs.value = Date.now() - startTime.value;
+    }
+  }, 100);
+};
+
+const finishRound = () => {
+  stopTimer();
+  elapsedMs.value = Date.now() - startTime.value;
+};
+
+const handleShareX = () => shareToX(shareParams.value);
+const handleShareLine = () => shareToLine(shareParams.value);
+const handleNativeShare = () => nativeShare(shareParams.value);
+
+const handleCopyShare = async () => {
+  try {
+    await copyShareMessage(shareParams.value);
+    copiedShare.value = true;
+    if (copyResetId !== undefined) clearTimeout(copyResetId);
+    copyResetId = setTimeout(() => {
+      copiedShare.value = false;
+    }, 2000);
+  } catch {
+    window.prompt("コピーしてシェアしてね", buildShareMessage(shareParams.value));
+  }
+};
+
 let stopFindShortcut: (() => void) | undefined;
 
 onMounted(() => {
+  startTimer();
   stopFindShortcut = onFindShortcut(handleFindShortcut);
 });
 
 onUnmounted(() => {
   stopFindShortcut?.();
+  stopTimer();
+  if (copyResetId !== undefined) clearTimeout(copyResetId);
 });
 
 const setCellRef = (el: Element | ComponentPublicInstance | null, index: number) => {
@@ -166,6 +233,7 @@ const handleClick = (index: number) => {
   if (items.value[index] === oddOne.value) {
     isFinished.value = true;
     wrongIndex.value = null;
+    finishRound();
     animate(target, {
       color: "#bc2e1f",
       duration: 400,
@@ -188,10 +256,12 @@ const reset = () => {
   isFinished.value = false;
   misses.value = 0;
   wrongIndex.value = null;
+  copiedShare.value = false;
   cellRefs.value = [];
   pair.value = pickRandomPair();
   items.value = createShuffledGridItems(pair.value.normal, pair.value.oddOne);
   round.value += 1;
+  startTimer();
 };
 </script>
 
@@ -232,7 +302,29 @@ const reset = () => {
         </div>
       </div>
     </section>
-    <footer class="footer">
+    <footer class="footer" :class="{ 'footer--finished': isFinished }">
+      <div v-if="isFinished" class="result">
+        <p class="result__headline">
+          <span class="result__time">{{ elapsedSeconds }}</span
+          ><span class="result__unit">秒</span>で見つけた
+        </p>
+        <p v-if="misses > 0" class="result__miss">ミス {{ misses }} 回</p>
+        <div class="share" role="group" aria-label="結果をシェア">
+          <button class="share__btn" type="button" @click="handleShareX">X</button>
+          <button class="share__btn" type="button" @click="handleShareLine">LINE</button>
+          <button
+            v-if="showNativeShare"
+            class="share__btn"
+            type="button"
+            @click="handleNativeShare"
+          >
+            シェア
+          </button>
+          <button class="share__btn" type="button" @click="handleCopyShare">
+            {{ copiedShare ? "コピーした" : "コピー" }}
+          </button>
+        </div>
+      </div>
       <button class="reset" type="button" @click="reset">
         <span class="reset__line"></span>もう一度
       </button>
@@ -454,6 +546,7 @@ const reset = () => {
 /* ---------- footer ---------- */
 .footer {
   display: flex;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 24px;
   width: calc(var(--cell-size) * v-bind(GRID_SIZE));
@@ -464,6 +557,72 @@ const reset = () => {
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--ink-soft);
+}
+
+.footer--finished {
+  align-items: flex-start;
+}
+
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.result__headline {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: clamp(1rem, 2vw, 1.15rem);
+  letter-spacing: 0.08em;
+  text-transform: none;
+  color: var(--ink);
+}
+
+.result__time {
+  font-size: clamp(1.6rem, 4vw, 2rem);
+  font-weight: 900;
+  color: var(--accent);
+}
+
+.result__unit {
+  margin-right: 0.15em;
+  font-size: 0.72em;
+  font-weight: 400;
+  color: var(--ink);
+}
+
+.result__miss {
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--ink-soft);
+}
+
+.share {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.share__btn {
+  appearance: none;
+  padding: 8px 12px;
+  border: 1px solid var(--hairline);
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink);
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.share__btn:hover {
+  border-color: var(--ink-soft);
+  color: var(--accent);
 }
 
 @media (max-width: 1024px) {
